@@ -1,0 +1,22 @@
+{
+  "name": "merge-greenkeeper-prs",
+  "version": "1.0.0",
+  "description": "Load Greenkeeper PRs from your notifications, merge the green ones and remove notifications",
+  "main": "index.js",
+  "bin": {
+    "merge-greenkeeper-prs": "merge-greenkeeper-prs.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "greenkeeper",
+    "cli"
+  ],
+  "author": "Gregor Martynus (https://twitter.com/gr2m)",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/core": "^2.2.0",
+    "@octokit/plugin-paginate-rest": "^1.1.1"
+  }
+}
