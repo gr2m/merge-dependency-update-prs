@@ -20,6 +20,10 @@ In a nutshell:
 4. Merges the pull request using the `rebase` merge method
 5. Marks the notification as read
 
+## Related projects
+
+- https://github.com/greenkeeper-keeper
+
 ### License
 
 [ISC](LICENSE)
