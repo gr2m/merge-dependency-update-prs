@@ -1,6 +1,6 @@
-# merge-greenkeeper-prs
+# merge-dependency-update-prs
 
-> Load Greenkeeper PRs from your notifications, merge the green ones and remove notifications
+> Load Greenkeeper/Dependabot PRs from your notifications, merge the green ones and remove notifications
 
 ## Usage
 
@@ -14,9 +14,9 @@ The code is commented, I hope it's self-explanatory. Please feel free to create 
 
 In a nutshell:
 
-1. Load all your notifications
-2. Filter out notifications that look like PRs from Greenkeeper
-3. Makes sure that all check runs and status are successful
+1. Loads all your notifications
+2. Filters out notifications that look like PRs from Greenkeeper or Dependabot
+3. Makess sure that all checks ran and that the combined status is success
 4. Merges the pull request using the `rebase` merge method
 5. Marks the notification as read
 

@@ -36,17 +36,41 @@ async function main(octokit) {
   const notifications = await octokit.paginate("GET /notifications");
 
   console.log(`${notifications.length} notifications found`);
-  const greenkeeperNotifications = notifications.filter(notification => {
+  const dependencyUpdateNotifications = notifications.filter(notification => {
     return /^Update.*to the latest version 🚀/.test(notification.subject.title);
   });
   console.log(
-    `${greenkeeperNotifications.length} Greenkeeper pull requests found in notifications`
+    `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
+  );
+
+  const securityVulnerabilityNotifications = notifications.filter(
+    notification => {
+      return /^Potential security vulnerability found/.test(
+        notification.subject.title
+      );
+    }
+  );
+
+  console.log(
+    `${securityVulnerabilityNotifications.length} dependency update pull requests found in notifications`
   );
 
   for (const {
     id: thread_id,
-    subject: { url }
-  } of greenkeeperNotifications) {
+    subject: { title }
+  } of securityVulnerabilityNotifications) {
+    console.log(`Marking "${title}" notification as read`);
+
+    // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
+    await octokit.request("PATCH /notifications/threads/:thread_id", {
+      thread_id
+    });
+  }
+
+  for (const {
+    id: thread_id,
+    subject: { url, title }
+  } of dependencyUpdateNotifications) {
     const [, owner, repo, pull_number] = url.match(
       /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
     );
@@ -141,7 +165,7 @@ async function main(octokit) {
         { owner, repo, pull_number, merge_method: "rebase" }
       );
 
-      console.log("Marking notification as read");
+      console.log(`Marking "${title}" notification as read`);
 
       // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
       await octokit.request("PATCH /notifications/threads/:thread_id", {
