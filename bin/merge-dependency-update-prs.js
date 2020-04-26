@@ -14,7 +14,7 @@ if (!process.env.GITHUB_TOKEN) {
 main(
   new MyOctokit({
     auth: process.env.GITHUB_TOKEN,
-    previews: ["antiope"]
+    previews: ["antiope"],
   })
 );
 
@@ -36,15 +36,22 @@ async function main(octokit) {
   const notifications = await octokit.paginate("GET /notifications");
 
   console.log(`${notifications.length} notifications found`);
-  const dependencyUpdateNotifications = notifications.filter(notification => {
-    return /^Update.*to the latest version 🚀/.test(notification.subject.title);
+  const dependencyUpdateNotifications = notifications.filter((notification) => {
+    const isGreenkeeperPr = /^Update.*to the latest version 🚀/.test(
+      notification.subject.title
+    );
+    const isDependabotPr = /^(chore|build)\(deps\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(
+      notification.subject.title
+    );
+
+    return isGreenkeeperPr || isDependabotPr;
   });
   console.log(
     `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
   );
 
   const securityVulnerabilityNotifications = notifications.filter(
-    notification => {
+    (notification) => {
       return /^Potential security vulnerability found/.test(
         notification.subject.title
       );
@@ -52,24 +59,24 @@ async function main(octokit) {
   );
 
   console.log(
-    `${securityVulnerabilityNotifications.length} dependency update pull requests found in notifications`
+    `${securityVulnerabilityNotifications.length} security vulnerability notifications found`
   );
 
   for (const {
     id: thread_id,
-    subject: { title }
+    subject: { title },
   } of securityVulnerabilityNotifications) {
     console.log(`Marking "${title}" notification as read`);
 
     // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
     await octokit.request("PATCH /notifications/threads/:thread_id", {
-      thread_id
+      thread_id,
     });
   }
 
   for (const {
     id: thread_id,
-    subject: { url, title }
+    subject: { url, title },
   } of dependencyUpdateNotifications) {
     const [, owner, repo, pull_number] = url.match(
       /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
@@ -116,30 +123,34 @@ async function main(octokit) {
     try {
       const result = await octokit.graphql(query, { htmlUrl });
 
-      if (result.resource.author.login !== "greenkeeper") {
+      if (
+        !["greenkeeper", "dependabot"].includes(result.resource.author.login)
+      ) {
         console.log(
-          `Ignoring. Author is ${result.resource.author.login}, not greenkeeper.`
+          `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`
         );
       }
 
       const [{ commit: lastCommit }] = result.resource.commits.nodes;
       const checkRuns = [].concat(
-        ...lastCommit.checkSuites.nodes.map(node => node.checkRuns.nodes)
+        ...lastCommit.checkSuites.nodes.map((node) => node.checkRuns.nodes)
       );
-      const statuses = lastCommit.status.contexts;
+      const statuses = lastCommit.status ? lastCommit.status.contexts : [];
 
       const unsuccessfulCheckRuns = checkRuns.filter(
-        checkRun => checkRun.conclusion !== "SUCCESS"
+        (checkRun) => checkRun.conclusion !== "SUCCESS"
       );
       const unsuccessStatuses = statuses.filter(
-        status => status.state !== "SUCCESS"
+        (status) => status.state !== "SUCCESS"
       );
 
       if (unsuccessfulCheckRuns.length || unsuccessStatuses.length) {
         console.log(
-          `${unsuccessfulCheckRuns.length +
-            unsuccessStatuses.length} checks/statuses out of ${checkRuns.length +
-            statuses.length} are not successful:`
+          `${
+            unsuccessfulCheckRuns.length + unsuccessStatuses.length
+          } checks/statuses out of ${
+            checkRuns.length + statuses.length
+          } are not successful:`
         );
 
         for (const checkRun of unsuccessfulCheckRuns) {
@@ -157,19 +168,24 @@ async function main(octokit) {
         continue;
       }
 
-      console.log("merging ...");
-
       // https://developer.github.com/v3/pulls/#merge-a-pull-request-merge-button
-      await octokit.request(
-        "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
-        { owner, repo, pull_number, merge_method: "rebase" }
-      );
+
+      if (/neighbourhoodie/.test(url)) {
+        console.log(`"${title}" is on @neighbourhoodie org, ignoring`);
+      } else {
+        console.log("merging ...");
+
+        await octokit.request(
+          "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
+          { owner, repo, pull_number, merge_method: "rebase" }
+        );
+      }
 
       console.log(`Marking "${title}" notification as read`);
 
       // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
       await octokit.request("PATCH /notifications/threads/:thread_id", {
-        thread_id
+        thread_id,
       });
     } catch (error) {
       console.log(error);
