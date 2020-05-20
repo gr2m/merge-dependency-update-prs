@@ -168,7 +168,13 @@ async function main(octokit) {
 
       await octokit.request(
         "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
-        { owner, repo, pull_number, merge_method: "rebase" }
+        {
+          owner,
+          repo,
+          pull_number,
+          merge_method: "squash",
+          commit_title: title.replace(/^build\(deps\)/, "fix(deps)"),
+        }
       );
 
       console.log(`Marking "${title}" notification as read`);
