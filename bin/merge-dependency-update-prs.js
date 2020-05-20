@@ -37,7 +37,7 @@ async function main(octokit) {
 
   console.log(`${notifications.length} notifications found`);
   const dependencyUpdateNotifications = notifications.filter((notification) => {
-    const isDependabotPr = /^(chore|build)\(deps\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(
+    const isDependabotPr = /^build\(deps-dev\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(
       notification.subject.title
     );
 
