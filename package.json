@@ -1,16 +1,16 @@
 {
-  "name": "merge-greenkeeper-prs",
+  "name": "merge-dependabot-prs",
   "version": "0.0.0-development",
-  "description": "Load Greenkeeper PRs from your notifications, merge the green ones and remove notifications",
+  "description": "Load Dependabot PRs from your notifications, merge the green ones and remove notifications",
   "main": "index.js",
   "bin": {
-    "merge-greenkeeper-prs": "merge-greenkeeper-prs.js"
+    "merge-dependabot-prs": "merge-dependabot-prs.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "greenkeeper",
+    "dependabot",
     "cli"
   ],
   "author": "Gregor Martynus (https://twitter.com/gr2m)",

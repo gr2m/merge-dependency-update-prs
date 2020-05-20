@@ -37,14 +37,11 @@ async function main(octokit) {
 
   console.log(`${notifications.length} notifications found`);
   const dependencyUpdateNotifications = notifications.filter((notification) => {
-    const isGreenkeeperPr = /^Update.*to the latest version 🚀/.test(
-      notification.subject.title
-    );
     const isDependabotPr = /^(chore|build)\(deps\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(
       notification.subject.title
     );
 
-    return isGreenkeeperPr || isDependabotPr;
+    return isDependabotPr;
   });
   console.log(
     `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
@@ -123,9 +120,7 @@ async function main(octokit) {
     try {
       const result = await octokit.graphql(query, { htmlUrl });
 
-      if (
-        !["greenkeeper", "dependabot"].includes(result.resource.author.login)
-      ) {
+      if (!["dependabot"].includes(result.resource.author.login)) {
         console.log(
           `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`
         );
@@ -169,17 +164,12 @@ async function main(octokit) {
       }
 
       // https://developer.github.com/v3/pulls/#merge-a-pull-request-merge-button
+      console.log("merging ...");
 
-      if (/neighbourhoodie/.test(url)) {
-        console.log(`"${title}" is on @neighbourhoodie org, ignoring`);
-      } else {
-        console.log("merging ...");
-
-        await octokit.request(
-          "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
-          { owner, repo, pull_number, merge_method: "rebase" }
-        );
-      }
+      await octokit.request(
+        "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
+        { owner, repo, pull_number, merge_method: "rebase" }
+      );
 
       console.log(`Marking "${title}" notification as read`);
 
