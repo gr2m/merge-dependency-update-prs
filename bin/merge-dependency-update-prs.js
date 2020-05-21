@@ -11,6 +11,8 @@ if (!process.env.GITHUB_TOKEN) {
   process.exit(1);
 }
 
+const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from (\d+\.\d+\.\d+) to (\d+\.\d+\.\d+)$/;
+
 main(
   new MyOctokit({
     auth: process.env.GITHUB_TOKEN,
@@ -37,7 +39,7 @@ async function main(octokit) {
 
   console.log(`${notifications.length} notifications found`);
   const dependencyUpdateNotifications = notifications.filter((notification) => {
-    const isDependabotPr = /^build\(deps-dev\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/.test(
+    const isDependabotPr = REGEX_DEPENDABOT_TITLE.test(
       notification.subject.title
     );
 
@@ -84,12 +86,14 @@ async function main(octokit) {
     const query = `query($htmlUrl: URI!) {
       resource(url: $htmlUrl) {
         ... on PullRequest {
+          state
           author {
             login
           }
           commits(last: 1) {
             nodes {
               commit {
+                oid
                 checkSuites(first: 100) {
                   nodes {
                     checkRuns(first: 100) {
@@ -124,58 +128,85 @@ async function main(octokit) {
         console.log(
           `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`
         );
-      }
-
-      const [{ commit: lastCommit }] = result.resource.commits.nodes;
-      const checkRuns = [].concat(
-        ...lastCommit.checkSuites.nodes.map((node) => node.checkRuns.nodes)
-      );
-      const statuses = lastCommit.status ? lastCommit.status.contexts : [];
-
-      const unsuccessfulCheckRuns = checkRuns.filter(
-        (checkRun) => checkRun.conclusion !== "SUCCESS"
-      );
-      const unsuccessStatuses = statuses.filter(
-        (status) => status.state !== "SUCCESS"
-      );
-
-      if (unsuccessfulCheckRuns.length || unsuccessStatuses.length) {
-        console.log(
-          `${
-            unsuccessfulCheckRuns.length + unsuccessStatuses.length
-          } checks/statuses out of ${
-            checkRuns.length + statuses.length
-          } are not successful:`
-        );
-
-        for (const checkRun of unsuccessfulCheckRuns) {
-          console.log(`- Check run by "${checkRun.name}"
-              Conclusion: ${checkRun.conclusion}
-              ${checkRun.permalink}`);
-        }
-
-        for (const status of unsuccessStatuses) {
-          console.log(`- Status run by "${status.context}"
-              state: ${status.state}
-              ${status.targetUrl}`);
-        }
-
         continue;
       }
 
-      // https://developer.github.com/v3/pulls/#merge-a-pull-request-merge-button
-      console.log("merging ...");
+      if (result.resource.state !== "OPEN") {
+        console.log(
+          `pull request state is "${result.resource.state}". Ignoring`
+        );
+      } else {
+        const [{ commit: lastCommit }] = result.resource.commits.nodes;
+        const checkRuns = [].concat(
+          ...lastCommit.checkSuites.nodes.map((node) => node.checkRuns.nodes)
+        );
+        const statuses = lastCommit.status ? lastCommit.status.contexts : [];
 
-      await octokit.request(
-        "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
-        {
-          owner,
-          repo,
-          pull_number,
-          merge_method: "squash",
-          commit_title: title.replace(/^build\(deps\)/, "fix(deps)"),
+        const unsuccessfulCheckRuns = checkRuns.filter(
+          (checkRun) => checkRun.conclusion !== "SUCCESS"
+        );
+        const unsuccessStatuses = statuses.filter(
+          (status) => status.state !== "SUCCESS"
+        );
+
+        if (unsuccessfulCheckRuns.length || unsuccessStatuses.length) {
+          console.log(
+            `${
+              unsuccessfulCheckRuns.length + unsuccessStatuses.length
+            } checks/statuses out of ${
+              checkRuns.length + statuses.length
+            } are not successful:`
+          );
+
+          for (const checkRun of unsuccessfulCheckRuns) {
+            console.log(`- Check run by "${checkRun.name}"
+              Conclusion: ${checkRun.conclusion}
+              ${checkRun.permalink}`);
+          }
+
+          for (const status of unsuccessStatuses) {
+            console.log(`- Status run by "${status.context}"
+              state: ${status.state}
+              ${status.targetUrl}`);
+          }
+
+          continue;
         }
-      );
+
+        // https://developer.github.com/v3/pulls/reviews/#create-a-pull-request-review
+        console.log("adding review");
+        await octokit.request(
+          "POST /repos/:owner/:repo/pulls/:pull_number/reviews",
+          {
+            owner,
+            repo,
+            pull_number,
+            event: "APPROVE",
+            commit_id: lastCommit.oid,
+          }
+        );
+
+        // https://developer.github.com/v3/pulls/#merge-a-pull-request-merge-button
+        console.log("merging ...");
+
+        try {
+          await octokit.request(
+            "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
+            {
+              owner,
+              repo,
+              pull_number,
+              merge_method: "squash",
+              commit_title: getCommitTitle(title),
+            }
+          );
+        } catch (error) {
+          if (error.status === 405) {
+            console.log("pull request was meanwhile rebased, try again later");
+            continue;
+          }
+        }
+      }
 
       console.log(`Marking "${title}" notification as read`);
 
@@ -188,4 +219,21 @@ async function main(octokit) {
       process.exit(1);
     }
   }
+}
+
+function getCommitTitle(title) {
+  const [, scope, , from, to] = title.match(REGEX_DEPENDABOT_TITLE);
+
+  if (scope === "deps-dev") {
+    return title;
+  }
+
+  // just checking for breaking version changes right now, without
+  // actually looking at the defined range. This needs to be done proper
+  const isOutOfRange = parseInt(from, 10) !== parseInt(to, 10);
+  if (!isOutOfRange) {
+    return title;
+  }
+
+  return title.replace(/^build\(deps\)/, "fix(deps)");
 }
