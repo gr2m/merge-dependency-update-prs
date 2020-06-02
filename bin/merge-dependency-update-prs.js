@@ -11,7 +11,7 @@ if (!process.env.GITHUB_TOKEN) {
   process.exit(1);
 }
 
-const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from (\d+\.\d+\.\d+) to (\d+\.\d+\.\d+)$/;
+const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/;
 
 main(
   new MyOctokit({
@@ -89,6 +89,11 @@ async function main(octokit) {
           state
           author {
             login
+          }
+          files(first:2) {
+            nodes {
+              path
+            }
           }
           commits(last: 1) {
             nodes {
@@ -197,7 +202,7 @@ async function main(octokit) {
               repo,
               pull_number,
               merge_method: "squash",
-              commit_title: getCommitTitle(title),
+              commit_title: getCommitTitle(title, result),
             }
           );
         } catch (error) {
@@ -221,19 +226,21 @@ async function main(octokit) {
   }
 }
 
-function getCommitTitle(title) {
-  const [, scope, , from, to] = title.match(REGEX_DEPENDABOT_TITLE);
+function getCommitTitle(title, result) {
+  const [, scope] = title.match(REGEX_DEPENDABOT_TITLE);
 
+  // ignore updates to dev dependencies
   if (scope === "deps-dev") {
     return title;
   }
 
-  // just checking for breaking version changes right now, without
-  // actually looking at the defined range. This needs to be done proper
-  const isOutOfRange = parseInt(from, 10) !== parseInt(to, 10);
-  if (!isOutOfRange) {
-    return title;
+  // if `package.json` was updated, we assume it was an out of range update
+  const packageJsonWasUpdated = !!result.resource.files.nodes.find(
+    (file) => file.path === "package.json"
+  );
+  if (packageJsonWasUpdated) {
+    return title.replace(/^build\(deps\)/, "fix(deps)");
   }
 
-  return title.replace(/^build\(deps\)/, "fix(deps)");
+  return title;
 }
