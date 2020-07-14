@@ -148,7 +148,9 @@ async function main(octokit) {
         const statuses = lastCommit.status ? lastCommit.status.contexts : [];
 
         const unsuccessfulCheckRuns = checkRuns.filter(
-          (checkRun) => checkRun.conclusion !== "SUCCESS"
+          (checkRun) =>
+            checkRun.conclusion !== "SUCCESS" &&
+            checkRun.conclusion !== "NEUTRAL"
         );
         const unsuccessStatuses = statuses.filter(
           (status) => status.state !== "SUCCESS"
