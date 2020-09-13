@@ -11,7 +11,8 @@ if (!process.env.GITHUB_TOKEN) {
   process.exit(1);
 }
 
-const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+$/;
+const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
+const REGEX_PULL_REQUEST_URL = /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
 
 main(
   new MyOctokit({
@@ -77,6 +78,10 @@ async function main(octokit) {
     id: thread_id,
     subject: { url, title },
   } of dependencyUpdateNotifications) {
+    if (!REGEX_PULL_REQUEST_URL.test(url)) {
+      console.log("Ignoring %s, not a pull request URL", url);
+      continue;
+    }
     const [, owner, repo, pull_number] = url.match(
       /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
     );
