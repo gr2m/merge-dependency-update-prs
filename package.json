@@ -21,5 +21,6 @@
   },
   "devDependencies": {
     "semantic-release": "^17.0.1"
-  }
+  },
+  "repository": "github:gr2m/merge-dependabot-prs"
 }
