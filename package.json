@@ -1,10 +1,10 @@
 {
-  "name": "merge-dependabot-prs",
+  "name": "merge-dependency-update-prs",
   "version": "0.0.0-development",
-  "description": "Load Dependabot PRs from your notifications, merge the green ones and remove notifications",
+  "description": "Load Dependabot & Renovate PRs from your notifications, merge the green ones and remove notifications",
   "main": "index.js",
   "bin": {
-    "merge-dependabot-prs": "merge-dependabot-prs.js"
+    "merge-dependency-update-prs": "bin/cli.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -22,5 +22,5 @@
   "devDependencies": {
     "semantic-release": "^17.0.1"
   },
-  "repository": "github:gr2m/merge-dependabot-prs"
+  "repository": "github:gr2m/merge-dependency-update-prs"
 }

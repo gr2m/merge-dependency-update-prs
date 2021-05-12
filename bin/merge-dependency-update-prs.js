@@ -11,9 +11,12 @@ if (!process.env.GITHUB_TOKEN) {
   process.exit(1);
 }
 
-const REGEX_DEPENDABOT_TITLE = /^(chore|build)\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
-const REGEX_RENOVATE_TITLE = /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
-const REGEX_PULL_REQUEST_URL = /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
+const REGEX_DEPENDABOT_TITLE =
+  /^(chore|build)\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
+const REGEX_RENOVATE_TITLE =
+  /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
+const REGEX_PULL_REQUEST_URL =
+  /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
 
 main(
   new MyOctokit({
