@@ -11,7 +11,8 @@ if (!process.env.GITHUB_TOKEN) {
   process.exit(1);
 }
 
-const REGEX_DEPENDABOT_TITLE = /^build\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
+const REGEX_DEPENDABOT_TITLE = /^(chore|build)\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
+const REGEX_RENOVATE_TITLE = /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
 const REGEX_PULL_REQUEST_URL = /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
 
 main(
@@ -44,7 +45,9 @@ async function main(octokit) {
       notification.subject.title
     );
 
-    return isDependabotPr;
+    const isRenovatePr = REGEX_RENOVATE_TITLE.test(notification.subject.title);
+
+    return isDependabotPr || isRenovatePr;
   });
   console.log(
     `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
@@ -134,7 +137,7 @@ async function main(octokit) {
     try {
       const result = await octokit.graphql(query, { htmlUrl });
 
-      if (!["dependabot"].includes(result.resource.author.login)) {
+      if (!["dependabot", "renovate"].includes(result.resource.author.login)) {
         console.log(
           `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`
         );
@@ -152,11 +155,17 @@ async function main(octokit) {
         );
         const statuses = lastCommit.status ? lastCommit.status.contexts : [];
 
-        const unsuccessfulCheckRuns = checkRuns.filter(
-          (checkRun) =>
-            checkRun.conclusion !== "SUCCESS" &&
-            checkRun.conclusion !== "NEUTRAL"
-        );
+        const unsuccessfulCheckRuns = checkRuns
+          .filter(
+            (checkRun) =>
+              checkRun.conclusion !== "SUCCESS" &&
+              checkRun.conclusion !== "NEUTRAL"
+          )
+          .filter((checkRun) => {
+            if (["Pika CI", "project-board"].includes(checkRun.name))
+              return false;
+            return checkRun.conclusion !== null;
+          });
         const unsuccessStatuses = statuses.filter(
           (status) => status.state !== "SUCCESS"
         );
@@ -217,6 +226,9 @@ async function main(octokit) {
             console.log("pull request was meanwhile rebased, try again later");
             continue;
           }
+
+          console.log(error);
+          process.exit();
         }
       }
 
@@ -234,11 +246,22 @@ async function main(octokit) {
 }
 
 function getCommitTitle(title, result) {
-  const [, scope] = title.match(REGEX_DEPENDABOT_TITLE);
+  const matches = title.match(REGEX_DEPENDABOT_TITLE);
+
+  if (!matches) {
+    return title;
+  }
+
+  const [, scope] = matches;
 
   // ignore updates to dev dependencies
   if (scope === "deps-dev") {
     return title;
+  }
+
+  // change fix commit prefix to build for lock file maintenance PRs
+  if (/lock file maintenance/.test(title)) {
+    return title.replace(/^fix\(deps\)/, "build(deps)");
   }
 
   // if `package.json` was updated, we assume it was an out of range update
