@@ -20,7 +20,7 @@
     "@octokit/plugin-paginate-rest": "^1.1.1"
   },
   "devDependencies": {
-    "semantic-release": "^17.0.1"
+    "semantic-release": "^19.0.3"
   },
   "repository": "github:gr2m/merge-dependency-update-prs"
 }
