@@ -72,6 +72,7 @@ async function main(octokit) {
     `${securityVulnerabilityNotifications.length} security vulnerability notifications found`
   );
 
+  // handle security notifications
   for (const {
     id: thread_id,
     subject: { title },
@@ -84,6 +85,7 @@ async function main(octokit) {
     });
   }
 
+  // handle PRs
   for (const {
     id: thread_id,
     subject: { url, title },
@@ -197,6 +199,30 @@ async function main(octokit) {
               state: ${status.state}
               ${status.targetUrl}`);
           }
+
+          continue;
+        }
+
+        // make sure no other reviewer is requesting changes
+        // https://docs.github.com/en/rest/pulls/reviews#list-reviews-for-a-pull-request
+        const reviews = await octokit.paginate(
+          "GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
+          {
+            owner,
+            repo,
+            pull_number,
+          }
+        );
+
+        const changesRequestedReviews = reviews.filter(
+          (review) => review.state === "CHANGES_REQUESTED"
+        );
+
+        if (changesRequestedReviews.length) {
+          const reviewerLogins = changesRequestedReviews.map(
+            (review) => `@${review.user.login}`
+          );
+          console.log(`Changes requested by: ${reviewerLogins.join(", ")}`);
 
           continue;
         }
