@@ -13,8 +13,10 @@ if (!process.env.GITHUB_TOKEN) {
 
 const REGEX_DEPENDABOT_TITLE =
   /^(chore|build)\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
-const REGEX_RENOVATE_TITLE =
+const REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE =
   /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
+const REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE =
+  /^ci\(action\): update .* digest to \w{7}/;
 const REGEX_PULL_REQUEST_URL =
   /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
 
@@ -48,7 +50,9 @@ async function main(octokit) {
       notification.subject.title
     );
 
-    const isRenovatePr = REGEX_RENOVATE_TITLE.test(notification.subject.title);
+    const isRenovatePr =
+      REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE.test(notification.subject.title) ||
+      REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE.test(notification.subject.title);
 
     return isDependabotPr || isRenovatePr;
   });
