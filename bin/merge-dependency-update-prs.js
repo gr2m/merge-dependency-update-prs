@@ -12,7 +12,7 @@ if (!process.env.GITHUB_TOKEN) {
 }
 
 const REGEX_DEPENDABOT_TITLE =
-  /^(chore|build)\((deps(-dev)?)\): bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+/;
+  /^(chore|build)\((deps(-dev)?)\): (bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+|bump \S+ and \S+)/;
 const REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE =
   /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
 const REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE =
@@ -107,6 +107,11 @@ async function main(octokit) {
           author {
             login
           }
+          labels(first:10) {
+            nodes {
+              name
+            }
+          }
           files(first:2) {
             nodes {
               path
@@ -153,10 +158,16 @@ async function main(octokit) {
         continue;
       }
 
+      const blockedLabel = result.resource.labels.nodes.find((node) =>
+        /\bblocked\b/i.test(node.name)
+      );
+
       if (result.resource.state !== "OPEN") {
         console.log(
           `pull request state is "${result.resource.state}". Ignoring`
         );
+      } else if (blockedLabel) {
+        console.log(`Pull request has label "${blockedLabel.name}". Ignoring`);
       } else {
         const [{ commit: lastCommit }] = result.resource.commits.nodes;
         const checkRuns = [].concat(
