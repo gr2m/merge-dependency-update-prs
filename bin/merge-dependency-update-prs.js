@@ -14,9 +14,9 @@ if (!process.env.GITHUB_TOKEN) {
 const REGEX_DEPENDABOT_TITLE =
   /^(chore|build)\((deps(-dev)?)\): (bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+|bump \S+ and \S+)/;
 const REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE =
-  /^(chore|build|fix)\(deps\): (update .* to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
+  /^(chore|build|fix)\(deps\): (update dependency \S+ to v\d+|update \S+ to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
 const REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE =
-  /^ci\(action\): update .* digest to \w{7}/;
+  /^ci\(action\): update \S+ (digest to \w{7}|action to v\S+$)/;
 const REGEX_PULL_REQUEST_URL =
   /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/;
 
@@ -97,6 +97,12 @@ async function main(octokit) {
     const [, owner, repo, pull_number] = url.match(
       /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
     );
+
+    if (owner === "github") {
+      console.log(`Ignoring pull request from ${owner}`);
+      continue;
+    }
+
     const htmlUrl = `https://github.com/${owner}/${repo}/pull/${pull_number}`;
     console.log(`Checking ${htmlUrl}`);
 
