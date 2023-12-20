@@ -12,7 +12,8 @@ if (!process.env.GITHUB_TOKEN) {
 }
 
 const REGEX_DEPENDABOT_TITLE =
-  /^(chore|build)\((deps(-dev)?)\): (bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+|bump \S+ and \S+)/;
+  // /^(chore|build)\((deps(-dev)?)\): (bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+|bump \S+ and \S+)/;
+  /^(chore|build)\((deps(-dev)?)\): bump /;
 const REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE =
   /^(chore|build|fix)\(deps\): (update dependency \S+ to v\d+|update \S+ to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
 const REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE =
@@ -56,6 +57,7 @@ async function main(octokit) {
 
     return isDependabotPr || isRenovatePr;
   });
+
   console.log(
     `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
   );
@@ -77,10 +79,18 @@ async function main(octokit) {
     id: thread_id,
     subject: { title },
   } of securityVulnerabilityNotifications) {
-    console.log(`Marking "${title}" notification as read`);
+    console.log(`Marking "${title}" notification as done`);
 
-    // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
-    await octokit.request("PATCH /notifications/threads/:thread_id", {
+    // https://docs.github.com/en/rest/activity/notifications/#delete-a-thread-subscription
+    await octokit.request(
+      "DELETE /notifications/threads/{thread_id}/subscription",
+      {
+        thread_id,
+      }
+    );
+
+    // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-done
+    await octokit.request("DELETE /notifications/threads/{thread_id}", {
       thread_id,
     });
   }
@@ -98,10 +108,10 @@ async function main(octokit) {
       /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
     );
 
-    if (owner === "github") {
-      console.log(`Ignoring pull request from ${owner}`);
-      continue;
-    }
+    // if (owner === "github") {
+    //   console.log(`Ignoring pull request from ${owner}`);
+    //   continue;
+    // }
 
     const htmlUrl = `https://github.com/${owner}/${repo}/pull/${pull_number}`;
     console.log(`Checking ${htmlUrl}`);
@@ -247,7 +257,7 @@ async function main(octokit) {
         // https://developer.github.com/v3/pulls/reviews/#create-a-pull-request-review
         console.log("adding review");
         await octokit.request(
-          "POST /repos/:owner/:repo/pulls/:pull_number/reviews",
+          "POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews",
           {
             owner,
             repo,
@@ -262,7 +272,7 @@ async function main(octokit) {
 
         try {
           await octokit.request(
-            "PUT /repos/:owner/:repo/pulls/:pull_number/merge",
+            "PUT /repos/{owner}/{repo}/pulls/{pull_number}/merge",
             {
               owner,
               repo,
@@ -282,10 +292,18 @@ async function main(octokit) {
         }
       }
 
-      console.log(`Marking "${title}" notification as read`);
+      console.log(`Marking "${title}" notification as done`);
 
-      // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-read
-      await octokit.request("PATCH /notifications/threads/:thread_id", {
+      // https://docs.github.com/en/rest/activity/notifications/#delete-a-thread-subscription
+      await octokit.request(
+        "DELETE /notifications/threads/{thread_id}/subscription",
+        {
+          thread_id,
+        }
+      );
+
+      // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-done
+      await octokit.request("DELETE /notifications/threads/{thread_id}", {
         thread_id,
       });
     } catch (error) {
