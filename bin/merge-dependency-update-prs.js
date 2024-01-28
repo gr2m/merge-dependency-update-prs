@@ -15,7 +15,7 @@ const REGEX_DEPENDABOT_TITLE =
   // /^(chore|build)\((deps(-dev)?)\): (bump \S+ from \d+\.\d+\.\d+ to \d+\.\d+\.\d+|bump \S+ and \S+)/;
   /^(chore|build)\((deps(-dev)?)\): bump /;
 const REGEX_RENOVATE_DEPENDENCY_UPDATE_TITLE =
-  /^(chore|build|fix)\(deps\): (update dependency \S+ to v\d+|update \S+ to v\d+(\.\d+\.\d+)?|lock file maintenance)/;
+  /^(chore|build|fix)\(deps\): (update dependency \S+ to [v^]\d+|update \S+ to v\d+(\.\d+\.\d+)?|lock file maintenance|replace dependency \S+ with.*$)/;
 const REGEX_RENOVATE_ACTION_PIN_UPDATE_TITLE =
   /^ci\(action\): update \S+ (digest to \w{7}|action to v\S+$)/;
 const REGEX_PULL_REQUEST_URL =
