@@ -4,7 +4,7 @@
   "description": "Load Dependabot & Renovate PRs from your notifications, merge the green ones and remove notifications",
   "main": "index.js",
   "bin": {
-    "merge-dependency-update-prs": "bin/cli.js"
+    "merge-dependency-update-prs": "bin/merge-dependency-update-prs.js.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
