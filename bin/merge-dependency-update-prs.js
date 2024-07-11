@@ -195,7 +195,8 @@ async function main(octokit) {
           .filter(
             (checkRun) =>
               checkRun.conclusion !== "SUCCESS" &&
-              checkRun.conclusion !== "NEUTRAL"
+              checkRun.conclusion !== "NEUTRAL" &&
+              checkRun.conclusion !== "SKIPPED"
           )
           .filter((checkRun) => {
             if (["Pika CI", "project-board"].includes(checkRun.name))
@@ -282,7 +283,7 @@ async function main(octokit) {
             }
           );
         } catch (error) {
-          if (error.status === 405) {
+          if (parseInt(error.status) === 405) {
             console.log("pull request was meanwhile rebased, try again later");
             continue;
           }
