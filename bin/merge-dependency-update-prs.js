@@ -25,7 +25,7 @@ main(
   new MyOctokit({
     auth: process.env.GITHUB_TOKEN,
     previews: ["antiope"],
-  })
+  }),
 );
 
 async function main(octokit) {
@@ -35,7 +35,7 @@ async function main(octokit) {
   for (const requiredScope of REQUIRED_SCOPES) {
     if (!scopes.includes(requiredScope)) {
       console.log(
-        `Provided GITHUB_TOKEN does not include "${requiredScope}" scope`
+        `Provided GITHUB_TOKEN does not include "${requiredScope}" scope`,
       );
       process.exit(1);
     }
@@ -48,7 +48,7 @@ async function main(octokit) {
   console.log(`${notifications.length} notifications found`);
   const dependencyUpdateNotifications = notifications.filter((notification) => {
     const isDependabotPr = REGEX_DEPENDABOT_TITLE.test(
-      notification.subject.title
+      notification.subject.title,
     );
 
     const isRenovatePr =
@@ -59,19 +59,19 @@ async function main(octokit) {
   });
 
   console.log(
-    `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`
+    `${dependencyUpdateNotifications.length} dependency update pull requests found in notifications`,
   );
 
   const securityVulnerabilityNotifications = notifications.filter(
     (notification) => {
       return /^Potential security vulnerability found/.test(
-        notification.subject.title
+        notification.subject.title,
       );
-    }
+    },
   );
 
   console.log(
-    `${securityVulnerabilityNotifications.length} security vulnerability notifications found`
+    `${securityVulnerabilityNotifications.length} security vulnerability notifications found`,
   );
 
   // handle security notifications
@@ -86,7 +86,7 @@ async function main(octokit) {
       "DELETE /notifications/threads/{thread_id}/subscription",
       {
         thread_id,
-      }
+      },
     );
 
     // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-done
@@ -105,7 +105,7 @@ async function main(octokit) {
       continue;
     }
     const [, owner, repo, pull_number] = url.match(
-      /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/
+      /^https:\/\/api.github.com\/repos\/([^/]+)\/([^/]+)\/pulls\/(\d+)$/,
     );
 
     // if (owner === "github") {
@@ -119,6 +119,9 @@ async function main(octokit) {
     const query = `query($htmlUrl: URI!) {
       resource(url: $htmlUrl) {
         ... on PullRequest {
+          repository {
+            viewerPermission
+          }
           state
           author {
             login
@@ -167,27 +170,32 @@ async function main(octokit) {
     try {
       const result = await octokit.graphql(query, { htmlUrl });
 
+      if (result.resource.repository.viewerPermission === "READ") {
+        console.log(`Ignoring. You have no write access to ${owner}/${repo}.`);
+        continue;
+      }
+
       if (!["dependabot", "renovate"].includes(result.resource.author.login)) {
         console.log(
-          `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`
+          `Ignoring. Author "${result.resource.author.login}" is not a known dependency update app`,
         );
         continue;
       }
 
       const blockedLabel = result.resource.labels.nodes.find((node) =>
-        /\bblocked\b/i.test(node.name)
+        /\bblocked\b/i.test(node.name),
       );
 
       if (result.resource.state !== "OPEN") {
         console.log(
-          `pull request state is "${result.resource.state}". Ignoring`
+          `pull request state is "${result.resource.state}". Ignoring`,
         );
       } else if (blockedLabel) {
         console.log(`Pull request has label "${blockedLabel.name}". Ignoring`);
       } else {
         const [{ commit: lastCommit }] = result.resource.commits.nodes;
         const checkRuns = [].concat(
-          ...lastCommit.checkSuites.nodes.map((node) => node.checkRuns.nodes)
+          ...lastCommit.checkSuites.nodes.map((node) => node.checkRuns.nodes),
         );
         const statuses = lastCommit.status ? lastCommit.status.contexts : [];
 
@@ -196,7 +204,7 @@ async function main(octokit) {
             (checkRun) =>
               checkRun.conclusion !== "SUCCESS" &&
               checkRun.conclusion !== "NEUTRAL" &&
-              checkRun.conclusion !== "SKIPPED"
+              checkRun.conclusion !== "SKIPPED",
           )
           .filter((checkRun) => {
             if (["Pika CI", "project-board"].includes(checkRun.name))
@@ -204,7 +212,7 @@ async function main(octokit) {
             return checkRun.conclusion !== null;
           });
         const unsuccessStatuses = statuses.filter(
-          (status) => status.state !== "SUCCESS"
+          (status) => status.state !== "SUCCESS",
         );
 
         if (unsuccessfulCheckRuns.length || unsuccessStatuses.length) {
@@ -213,7 +221,7 @@ async function main(octokit) {
               unsuccessfulCheckRuns.length + unsuccessStatuses.length
             } checks/statuses out of ${
               checkRuns.length + statuses.length
-            } are not successful:`
+            } are not successful:`,
           );
 
           for (const checkRun of unsuccessfulCheckRuns) {
@@ -239,16 +247,16 @@ async function main(octokit) {
             owner,
             repo,
             pull_number,
-          }
+          },
         );
 
         const changesRequestedReviews = reviews.filter(
-          (review) => review.state === "CHANGES_REQUESTED"
+          (review) => review.state === "CHANGES_REQUESTED",
         );
 
         if (changesRequestedReviews.length) {
           const reviewerLogins = changesRequestedReviews.map(
-            (review) => `@${review.user.login}`
+            (review) => `@${review.user.login}`,
           );
           console.log(`Changes requested by: ${reviewerLogins.join(", ")}`);
 
@@ -265,7 +273,7 @@ async function main(octokit) {
             pull_number,
             event: "APPROVE",
             commit_id: lastCommit.oid,
-          }
+          },
         );
 
         // https://developer.github.com/v3/pulls/#merge-a-pull-request-merge-button
@@ -280,7 +288,7 @@ async function main(octokit) {
               pull_number,
               merge_method: "squash",
               commit_title: getCommitTitle(title, result),
-            }
+            },
           );
         } catch (error) {
           if (parseInt(error.status) === 405) {
@@ -300,7 +308,7 @@ async function main(octokit) {
         "DELETE /notifications/threads/{thread_id}/subscription",
         {
           thread_id,
-        }
+        },
       );
 
       // https://developer.github.com/v3/activity/notifications/#mark-a-thread-as-done
@@ -335,7 +343,7 @@ function getCommitTitle(title, result) {
 
   // if `package.json` was updated, we assume it was an out of range update
   const packageJsonWasUpdated = !!result.resource.files.nodes.find(
-    (file) => file.path === "package.json"
+    (file) => file.path === "package.json",
   );
   if (packageJsonWasUpdated) {
     return title.replace(/^build\(deps\)/, "fix(deps)");
